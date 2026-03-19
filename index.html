@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Infinity Clicker Ultimate</title>
+<style>
+body {
+  margin:0;
+  background: radial-gradient(circle, #111, #000);
+  color:white;
+  font-family: Arial;
+  text-align:center;
+  overflow:hidden;
+}
+h1 { margin-top:20px; }
+#score { font-size:40px; }
+#btn {
+  font-size:28px;
+  padding:25px 40px;
+  margin:20px;
+  cursor:pointer;
+  border:none;
+  background:#222;
+  color:white;
+  border-radius:10px;
+  transition:0.1s;
+}
+#btn:active { transform:scale(1.1); background:#444; }
+
+.panel, #prestige, #achievements {
+  position:fixed;
+  background:#111;
+  padding:10px;
+  border-radius:10px;
+  width:200px;
+}
+.panel { right:10px; top:100px; }
+#prestige { left:10px; top:100px; }
+#achievements { left:10px; bottom:100px; }
+
+.upgrade {
+  background:#222;
+  margin:10px;
+  padding:10px;
+  cursor:pointer;
+  border-radius:8px;
+}
+.upgrade:hover { background:#333; }
+
+.float {
+  position:absolute;
+  font-size:20px;
+  pointer-events:none;
+  animation: floatUp 1s forwards;
+}
+@keyframes floatUp {
+  0% {opacity:1; transform:translateY(0);}
+  100% {opacity:0; transform:translateY(-60px);}
+}
+</style>
+</head>
+<body>
+
+<h1>Infinity Clicker Ultimate</h1>
+<div id="score">0</div>
+<div>Combo: <span id="combo">0</span></div>
+<div>Fragments: <span id="fragments">0</span></div>
+
+<button id="btn">CLICK</button>
+
+<div class="panel">
+  <div class="upgrade" onclick="buyPower()">Power (+1) - 20</div>
+  <div class="upgrade" onclick="buyAuto()">Auto Click - 50</div>
+  <div class="upgrade" onclick="buyMulti()">Multiplier (+0.5) - 100</div>
+</div>
+
+<div id="prestige">
+  <div onclick="prestige()">Prestige Reset</div>
+</div>
+
+<div id="achievements">
+  <h4>Achievements</h4>
+  <ul id="achList"></ul>
+</div>
+
+<audio id="music" loop autoplay>
+  <source src="https://cdn.pixabay.com/audio/2022/03/15/audio_115b9b1b9c.mp3" type="audio/mpeg">
+</audio>
+<audio id="clickSound">
+  <source src="https://cdn.pixabay.com/audio/2023/02/15/audio_45d7e4b9aa.mp3" type="audio/mpeg">
+</audio>
+<audio id="upgradeSound">
+  <source src="https://cdn.pixabay.com/audio/2023/02/15/audio_3d6c1c1c55.mp3" type="audio/mpeg">
+</audio>
+
+<script>
+let score=0, power=1, auto=0, multi=1, combo=0, fragments=0;
+let achievements = {firstClick:false, hundredClicks:false, firstAuto:false, prestige1:false};
+let comboTimer;
+
+const btn=document.getElementById("btn");
+const clickSound = document.getElementById("clickSound");
+const upgradeSound = document.getElementById("upgradeSound");
+
+btn.onclick = (e)=>{
+  combo++;
+  clearTimeout(comboTimer);
+  comboTimer = setTimeout(()=>combo=0,1000);
+  
+  let gain = power*multi*(1+combo*0.1);
+  score += gain;
+  spawnText("+"+Math.floor(gain), e.clientX, e.clientY);
+  clickSound.currentTime=0; clickSound.play();
+
+  checkAchievements();
+  update();
+};
+
+function spawnText(text,x,y){
+  let el=document.createElement("div");
+  el.className="float";
+  el.innerText=text;
+  el.style.left=x+"px";
+  el.style.top=y+"px";
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(),1000);
+}
+
+function update(){
+  document.getElementById("score").innerText=Math.floor(score);
+  document.getElementById("combo").innerText=combo;
+  document.getElementById("fragments").innerText=fragments;
+}
+
+function buyPower(){if(score>=20){score-=20; power++; upgradeSound.play(); update();}}
+function buyAuto(){if(score>=50){score-=50; auto++; upgradeSound.play(); update(); checkAchievements();}}
+function buyMulti(){if(score>=100){score-=100; multi+=0.5; upgradeSound.play(); update();}}
+
+setInterval(()=>{
+  score += auto*multi;
+  update();
+},1000);
+
+function prestige(){
+  if(score>=1000){
+    let gained=Math.floor(score/1000);
+    fragments+=gained;
+    score=0; power=1; auto=0; multi=1;
+    document.body.style.background="linear-gradient(45deg, purple, black)";
+    upgradeSound.play();
+    update();
+    checkAchievements(true);
+  }
+}
+
+// ACHIEVEMENTS
+function checkAchievements(prestige=false){
+  if(!achievements.firstClick && score>=1){achievements.firstClick=true; addAch("First Click!");}
+  if(!achievements.hundredClicks && score>=100){achievements.hundredClicks=true; addAch("100 Points!");}
+  if(!achievements.firstAuto && auto>=1){achievements.firstAuto=true; addAch("Auto Clicker!");}
+  if(prestige && !achievements.prestige1){achievements.prestige1=true; addAch("First Prestige!");}
+}
+
+function addAch(text){
+  let li=document.createElement("li");
+  li.innerText=text;
+  document.getElementById("achList").appendChild(li);
+}
+
+// SAVE SYSTEM
+setInterval(()=>{
+  localStorage.setItem("save",JSON.stringify({score,power,auto,multi,fragments,achievements}));
+},2000);
+
+let save=JSON.parse(localStorage.getItem("save"));
+if(save){
+  score=save.score; power=save.power; auto=save.auto; multi=save.multi;
+  fragments=save.fragments; achievements=save.achievements;
+  update();
+  for(let ach in achievements){ if(achievements[ach]) addAch(formatAchName(ach)); }
+}
+
+function formatAchName(key){
+  switch(key){
+    case "firstClick": return "First Click!";
+    case "hundredClicks": return "100 Points!";
+    case "firstAuto": return "Auto Clicker!";
+    case "prestige1": return "First Prestige!";
+  }
+  return key;
+}
+
+</script>
+</body>
+</html>
